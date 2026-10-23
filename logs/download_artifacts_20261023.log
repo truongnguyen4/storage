@@ -1,0 +1,38 @@
+Datetime now: Fri Oct 23 09:00:56 AM +07 2026
+Checking to download images...
+remotes: qa
+androids: a15
+dates: 20261001 20261002 20261003 20261004 20261005 20261006 20261007 20261008 20261009 20261010
+types: gms
+variants: userdebug
+firmwares: fastboot.zip
+local path: /media/truongnguyen/1tb/images/4490/LA3
+log file: /home/truongnguyen/Working/storage/logs/download_artifacts_20261023.log
+----------------------------------------
+Searching remote path: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490
+09:00:56 [Info] Searching artifacts...
+09:01:06 [Info] Found 2 artifacts.
+Found android directory: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490/a15
+09:01:06 [Info] Searching artifacts...
+09:01:08 [Info] Found 125 artifacts.
+Found date directory: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490/a15/3.27.021.20261002s
+09:01:08 [Info] Searching artifacts...
+09:01:10 [Info] Found 4 artifacts.
+Found type-variant directory: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490/a15/3.27.021.20261002s/gms-userdebug
+09:01:10 [Info] Searching artifacts...
+09:01:12 [Info] Found 6 artifacts.
+Found date directory: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490/a15/3.27.022.20261006s
+09:01:12 [Info] Searching artifacts...
+09:01:14 [Info] Found 5 artifacts.
+Found type-variant directory: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490/a15/3.27.022.20261006s/gms-userdebug
+09:01:14 [Info] Searching artifacts...
+09:01:15 [Info] Found 0 artifacts.
+----------------------------------------
+Found 1 image(s)
+1. dl4490_gms-userdebug_3.27.021.20261002s_a15_qfil_fastboot.zip
+Auto download enabled, downloading all found images
+----------------------------------------
+Try downloading:
+        https://jfrog.devops.datalogic.com/artifactory/mob-dl4490-generic-qa-local/mob/bsp-android/dl4490/a15/3.27.021.20261002s/gms-userdebug/dl4490_gms-userdebug_3.27.021.20261002s_a15_qfil_fastboot.zip
+SKIP DOWNLOAD (File already exists) in:
+        /media/truongnguyen/1tb/images/4490/LA3/a15/3.27.021.20261002s/gms-userdebug/dl4490_gms-userdebug_3.27.021.20261002s_a15_qfil_fastboot.zip

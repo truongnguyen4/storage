@@ -1,12 +1,13 @@
 #!/bin/bash
 
+DATE=$(date +%Y%m%d)
 ARTIFACTORY_URL="https://jfrog.devops.datalogic.com/artifactory"
 REMOTE_REPO_PREFIX="mob-dl4490-generic"
 REMOTE_REPO_SUFFIX="local"
 REMOTE_BASE_PATH="mob/bsp-android/dl4490"
-LOCAL_PATH="/mnt/ssd_1tb/images/4490"
 
-LOG_FILE="/home/truongnguyen/Working/storage/log.log"
+LOCAL_FIRMWARES="/media/truongnguyen/1tb/images/4490/LA3"
+LOCAL_LOG="/home/truongnguyen/Working/storage/logs/download_artifacts_${DATE}.log"
 
 remotes=("qa")
 androids=("a13" "a15")
@@ -14,7 +15,11 @@ dates=()
 types=("gms" "aosp")
 variants=("user" "userdebug")
 firmwares=("ota.zip" "fastboot.zip")
+auto_download=0
 
+# -------------------------------------
+# ----------- UTILITIES ---------------
+# -------------------------------------
 query_jf() {
     local imageDirectory=$1
     jf rt search "${imageDirectory}/*" --include-dirs=true --recursive=false | jq -r '.[] | (.path)'
@@ -28,55 +33,6 @@ convert_remote_path() {
     else
         echo "${REMOTE_REPO_PREFIX}-${remote}-${REMOTE_REPO_SUFFIX}/${REMOTE_BASE_PATH}"
     fi
-}
-
-# Prints every repository that holds images this script can download
-list_remotes() {
-    local -x JFROG_CLI_LOG_LEVEL=ERROR
-
-    local repos=()
-    mapfile -t repos < <(jf rt curl -s -XGET "/api/repositories?type=local" \
-        | jq -r --arg prefix "${REMOTE_REPO_PREFIX}-" \
-               --arg suffix "-${REMOTE_REPO_SUFFIX}" \
-               '.[].key | select(startswith($prefix)) | select(endswith($suffix))' \
-        | sort)
-
-    if [[ ${#repos[@]} -eq 0 ]]; then
-        echo "No repository matches ${REMOTE_REPO_PREFIX}-*-${REMOTE_REPO_SUFFIX}" >&2
-        echo "Check the Artifactory login with: jf c show" >&2
-        return 1
-    fi
-
-    echo "Remote paths on ${ARTIFACTORY_URL}"
-    echo
-    printf '%-10s %-16s %s\n' "NAME" "ANDROID" "REMOTE PATH"
-
-    local listed=0
-    for repo in "${repos[@]}"; do
-        local name=${repo#"${REMOTE_REPO_PREFIX}-"}
-        name=${name%"-${REMOTE_REPO_SUFFIX}"}
-
-        local path="${repo}/${REMOTE_BASE_PATH}"
-        local found=()
-        for android in $(query_jf "$path"); do
-            found+=("$(basename "$android")")
-        done
-
-        # Repositories without the bsp-android layout hold nothing to download
-        [[ ${#found[@]} -eq 0 ]] && continue
-
-        printf '%-10s %-16s %s\n' "$name" "${found[*]}" "$path"
-        listed=1
-    done
-
-    if [[ $listed -eq 0 ]]; then
-        echo "No repository contains ${REMOTE_BASE_PATH}" >&2
-        return 1
-    fi
-
-    echo
-    echo "Pass a name to --remote, for example: $(basename "$0") --remote ${remotes[0]}"
-    echo "A value containing '/' is used as a full remote path instead."
 }
 
 download_jf() {
@@ -105,7 +61,9 @@ download_jf() {
     return $rc
 }
 
-
+# -------------------------------------
+# ----------- MAIN LOGIC --------------
+# -------------------------------------
 
 usage() {
 cat <<EOF
@@ -130,12 +88,15 @@ Options:
 -v, --variant   user,userdebug         Build variants          (default: user,userdebug)
 -f, --firmware  ota.zip,fastboot.zip   Image suffix, the part of the file name
                                         after the last '_'      (default: ota.zip,fastboot.zip)
+-y, --yes                              Download every image found without asking.
+                                        Without it the images found are listed
+                                        and the ones to download are chosen.
 -h, --help                             Show this help
 
 Examples:
 $(basename "$0") --list-remotes
 $(basename "$0") -r prod -a a15 -d 20260827
-$(basename "$0") --remote qa,nightly --daysago 7
+$(basename "$0") --remote qa,nightly --daysago 7 -y
 $(basename "$0") -a a13 a15 -d 20260827 -t gms -v userdebug user -f ota.zip
 $(basename "$0") -a a15 --daysago 10
 $(basename "$0") --from 20260801 --to 20260827 -v userdebug
@@ -151,6 +112,11 @@ get_options() {
         local opt=${arg%%=*}
         local vals=() chunk=()
         shift
+
+        # Flags take no value
+        case "$opt" in
+            -y|--yes) auto_download=1; continue ;;
+        esac
 
         if [[ "$arg" == *=* ]]; then
             IFS=',' read -r -a vals <<< "${arg#*=}"
@@ -267,7 +233,11 @@ get_options() {
     dates=("$(date +%Y%m%d)")
 }
 
-download() {
+# -------------------------------------
+# ----------- FIRMWARES ---------------
+# -------------------------------------
+
+find_firmwares() {
     local remotes=("${!1}")
     local androids=("${!2}")
     local dates=("${!3}")
@@ -284,12 +254,12 @@ download() {
 
     for remote in "${remotes[@]}"; do
         local remote_base="$(convert_remote_path "$remote")"
-        echo "Searching remote path: $remote_base"
+        echo "Searching remote path: $remote_base" >&2
 
         local androids_found=($(query_jf "$remote_base"))
         if [[ ${#androids_found[@]} -eq 0 ]]; then
-            echo "NOTHING FOUND at remote path (run --list-remotes for the usable ones):"
-            echo "        $remote_base"
+            echo "NOTHING FOUND at remote path (run --list-remotes for the usable ones):" >&2
+            echo "        $remote_base" >&2
             continue
         fi
 
@@ -297,39 +267,100 @@ download() {
             if [[ ! " ${androids[@]} " =~ " $(basename "$android") " ]]; then
                 continue
             fi
-            echo "Found android directory: $android"
+            echo "Found android directory: $android" >&2
             for date in $(query_jf "${android}"); do
                 if [[ ! " ${dates[@]} " =~ " $(basename "$date" | cut -d. -f4 | cut -c1-8) " ]]; then
                     continue
                 fi
-                echo "Found date directory: $date"
+                echo "Found date directory: $date" >&2
                 for type_variant in $(query_jf "${date}"); do
                     if [[ ! " ${type_variants[@]} " =~ " $(basename "$type_variant") " ]]; then
                         continue
                     fi
-                    echo "Found type-variant directory: $type_variant"
+                    echo "Found type-variant directory: $type_variant" >&2
                     for firmware in $(query_jf "${type_variant}"); do
                         local name="$(basename "$firmware")"
                         if [[ ! " ${firmwares[@]} " =~ " ${name##*_} " ]]; then
                             continue
                         fi
-
-                        local source="$firmware"
-                        local destination="${LOCAL_PATH}/${source#${remote_base}/}"
-                        echo "Try downloading:"
-                        echo "        ${ARTIFACTORY_URL}/${source}"
-
-                        if [[ -f "$destination" ]]; then
-                            echo "SKIP DOWNLOAD (File already exists) in:"
-                            echo "        $destination"
-                        else
-                            download_jf "$source" "$destination"
-                        fi
+                        echo "$firmware"
                     done
                 done
             done
         done
     done
+}
+
+print_firmwares() {
+    local i=1
+    for firmware in "$@"; do
+        echo "${i}. $(basename "$firmware")"
+        ((i++))
+    done
+}
+
+select_firmwares() {
+    local paths=("$@")
+    local count=${#paths[@]}
+
+    while true; do
+        echo >&2
+        echo "Enter 0 to download all, or the numbers to download (e.g. 1 3 4)." >&2
+        echo -n "Empty input cancels: " >&2
+
+        local input
+        if ! read -r input; then
+            echo >&2
+            echo "No input, nothing selected" >&2
+            return 1
+        fi
+
+        local choices=()
+        IFS=', ' read -r -a choices <<< "$input"
+        [[ ${#choices[@]} -eq 0 ]] && return 0
+
+        local valid=1
+        for choice in "${choices[@]}"; do
+            if [[ ! "$choice" =~ ^[0-9]+$ || "$choice" -gt "$count" ]]; then
+                echo "Invalid choice: $choice (expected 0 to ${count})" >&2
+                valid=0
+            fi
+        done
+        [[ $valid -eq 1 ]] && break
+    done
+
+    if [[ " ${choices[*]} " =~ " 0 " ]]; then
+        printf '%s\n' "${paths[@]}"
+        return 0
+    fi
+
+    local i
+    for ((i = 1; i <= count; i++)); do
+        if [[ " ${choices[*]} " =~ " ${i} " ]]; then
+            echo "${paths[i-1]}"
+        fi
+    done
+}
+
+download_firmwares() {
+    local failed=0
+
+    for source in "$@"; do
+        local relative=$(echo "$source" | rev | cut -d/ -f1-4 | rev)
+        local destination="${LOCAL_FIRMWARES}/${relative}"
+
+        echo "Try downloading:"
+        echo "        ${ARTIFACTORY_URL}/${source}"
+
+        if [[ -f "$destination" ]]; then
+            echo "SKIP DOWNLOAD (File already exists) in:"
+            echo "        $destination"
+        else
+            download_jf "$source" "$destination" || failed=1
+        fi
+    done
+
+    return $failed
 }
 
 main() {
@@ -344,21 +375,40 @@ main() {
     echo types: "${types[@]}"
     echo variants: "${variants[@]}"
     echo firmwares: "${firmwares[@]}"
-    echo local path: "$LOCAL_PATH"
-    echo log file: "$LOG_FILE"
+    echo local path: "$LOCAL_FIRMWARES"
+    echo log file: "$LOCAL_LOG"
     echo "----------------------------------------"
 
-    download remotes[@] androids[@] dates[@] types[@] variants[@] firmwares[@]
+    # Find all firmware paths matching the specified filters
+    local firmware_paths=()
+    mapfile -t firmware_paths < <(find_firmwares remotes[@] androids[@] dates[@] types[@] variants[@] firmwares[@])
+
+    if [[ ${#firmware_paths[@]} -eq 0 ]]; then
+        echo "No image matches the filters"
+        return 0
+    fi
+
+    # Print the found firmware paths
+    echo "----------------------------------------"
+    echo "Found ${#firmware_paths[@]} image(s)"
+    print_firmwares "${firmware_paths[@]}"
+
+    # Ask the user to select firmwares to download if auto download is not enabled
+    if [[ $auto_download -eq 0 ]]; then
+        mapfile -t firmware_paths < <(select_firmwares "${firmware_paths[@]}")
+        if [[ ${#firmware_paths[@]} -eq 0 ]]; then
+            echo "Nothing selected, no image downloaded"
+            return 0
+        fi
+    else
+        echo "----------------------------------------"
+        echo "Auto download enabled, downloading all found images"
+    fi
+
+    # Download the selected firmware paths
+    echo "---------------Start Download -------------------------"
+    download_firmwares "${firmware_paths[@]}"
 }
 
-# --help and --list-remotes only print, so they are handled before the download
-# run and leave the log file of the last real run untouched.
-for arg in "$@"; do
-    case "$arg" in
-        -h|--help)         usage; exit 0 ;;
-        -l|--list-remotes) list_remotes; exit $? ;;
-    esac
-done
-
-main "$@" 2>&1 | tee "$LOG_FILE"
+main "$@" 2>&1 | tee "$LOCAL_LOG"
 

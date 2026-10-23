@@ -1,0 +1,21 @@
+Datetime now: Wed Oct 21 09:00:01 PM +07 2026
+Checking to download images...
+remotes: qa
+androids: a15
+dates: 20261021
+types: gms
+variants: userdebug user
+firmwares: fastboot.zip
+local path: /mnt/ssd_1tb/images/4490
+log file: /home/truongnguyen/Working/storage/logs/download_artifacts_20261021.log
+----------------------------------------
+Searching remote path: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490
+21:00:02 [Warn] You are using JFrog CLI version 2.94.0, however version 2.127.0 is available.
+To install the latest version, visit: https://jfrog.com/getcli
+To see the release notes, visit: https://github.com/jfrog/jfrog-cli/releases
+To avoid this message, set the JFROG_CLI_AVOID_NEW_VERSION_WARNING variable to TRUE
+21:00:02 [Info] Searching artifacts...
+21:00:15 [Info] Found 2 artifacts.
+Found android directory: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490/a15
+21:00:15 [Info] Searching artifacts...
+21:00:17 [Info] Found 125 artifacts.

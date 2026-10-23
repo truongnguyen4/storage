@@ -1,17 +1,17 @@
-Datetime now: Fri Oct 16 09:58:16 AM +07 2026
+Datetime now: Tue Oct 20 09:00:01 PM +07 2026
 Checking to download images...
 remotes: qa
 androids: a15
-dates: 20261016
+dates: 20261020
 types: gms
-variants: userdebug
+variants: userdebug user
 firmwares: fastboot.zip
 local path: /mnt/ssd_1tb/images/4490
-log file: /home/truongnguyen/Working/storage/log.log
+log file: /home/truongnguyen/Working/storage/logs/download_artifacts_20261020.log
 ----------------------------------------
 Searching remote path: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490
-09:58:16 [Info] Searching artifacts...
-09:58:18 [Info] Found 2 artifacts.
+21:00:01 [Info] Searching artifacts...
+21:00:04 [Info] Found 2 artifacts.
 Found android directory: mob-dl4490-generic-qa-local/mob/bsp-android/dl4490/a15
-09:58:18 [Info] Searching artifacts...
-09:58:19 [Info] Found 124 artifacts.
+21:00:04 [Info] Searching artifacts...
+21:00:05 [Info] Found 124 artifacts.

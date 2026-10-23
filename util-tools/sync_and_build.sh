@@ -16,6 +16,7 @@ set -uo pipefail
 #   <module>_groups : manifest groups synced for the module (comma separated, repo list -g)
 #   <module>_flags  : module flags, accepted by both build_clean.sh and localbuild.sh
 # ----------------------------------------------------------------------------
+
 declare -A CONFIG_4490=(
    [source_dir]="${HOME}/Working/src/4490-user"
    [docker_image]="aosp-qcm4490-build-env"
@@ -233,44 +234,48 @@ check_build_result() {
    fi
 }
 
+LOG_FILE=""
 main() {
-   parse_args "$@" || exit_on_failure "parse arguments"
-   if [ "${SHOW_HELP}" = true ]; then
-      print_help
-      exit 0
-   fi
+    parse_args "$@" || exit_on_failure "parse arguments"
+    DATE=$(date +%Y%m%d)
+    LOG_FILE="/home/truongnguyen/Working/storage/logs/sync_and_build_${SRC}_${MODULE}_${DATE}.log"
 
-   log_step "[Load config]"
-   load_config || exit_on_failure "load config"
-   print_config
+    if [ "${SHOW_HELP}" = true ]; then
+    print_help
+    exit 0
+    fi
 
-   log_step "[Check environment]"
-   check_environment || exit_on_failure "check environment"
-   log_step "OK"
+    log_step "[Load config]"
+    load_config || exit_on_failure "load config"
+    print_config
 
-   log_step "[Clean ${MODULE} build output]"
-   clean_output || exit_on_failure "clean build output"
-   log_step "OK"
+    log_step "[Check environment]"
+    check_environment || exit_on_failure "check environment"
+    log_step "OK"
 
-   log_step "[Sync ${MODULE} source]"
-   local sync_failed=false
-   sync_source || sync_failed=true
+    log_step "[Clean ${MODULE} build output]"
+    clean_output || exit_on_failure "clean build output"
+    log_step "OK"
 
-   log_step "[Restore local branches]"
-   restore_branches || exit_on_failure "restore local branches"
-   log_step "OK"
+    log_step "[Sync ${MODULE} source]"
+    local sync_failed=false
+    sync_source || sync_failed=true
 
-   [ "${sync_failed}" = false ] || exit_on_failure "sync source"
+    log_step "[Restore local branches]"
+    restore_branches || exit_on_failure "restore local branches"
+    log_step "OK"
 
-   log_step "[Build ${MODULE} in docker]"
-   build_in_docker || exit_on_failure "build in docker"
-   log_step "OK"
+    [ "${sync_failed}" = false ] || exit_on_failure "sync source"
 
-   log_step "[Check build result]"
-   check_build_result || exit_on_failure "check build result"
-   log_step "OK"
+    log_step "[Build ${MODULE} in docker]"
+    build_in_docker || exit_on_failure "build in docker"
+    log_step "OK"
 
-   echo "${SRC} ${MODULE}: clean, sync and build completed: SUCCESSFUL"
+    log_step "[Check build result]"
+    check_build_result || exit_on_failure "check build result"
+    log_step "OK"
+
+    echo "${SRC} ${MODULE}: clean, sync and build completed: SUCCESSFUL"
 }
 
-main "$@"
+main "$@" > "${LOG_FILE}" 2>&1
